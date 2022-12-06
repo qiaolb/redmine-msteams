@@ -21,6 +21,21 @@ module RedmineMsteams
 
       facts[I18n.t("field_watcher")] = escape(issue.watcher_users.join(', ')) if Setting.plugin_redmine_msteams[:display_watchers] == 'yes'
 
+      members = Array.new
+      begin
+    	members << "#{escape issue.author.login}@wafersystems.com" if !issue.author.nil? && issue.author.auth_source_id == 1
+        members << "#{escape issue.assigned_to.login}@wafersystems.com" if !issue.assigned_to.nil? && issue.assigned_to.type=='User' && issue.assigned_to.auth_source_id == 1
+        
+        issue.watcher_users.each{ | watcher |
+        	members << "#{escape watcher.login}@wafersystems.com" if watcher.type=='User' && watcher.auth_source_id == 1
+        }
+        
+        members.uniq!
+	  rescue Exception => e
+		Rails.logger.error(e.message)
+	  end
+      facts["members"] = escape(members.join(";"))
+
       msg.addFacts(nil,facts)
       #msg.addAction('Issue',"#{object_url issue}")
 
@@ -32,15 +47,43 @@ module RedmineMsteams
 
       issue = context[:issue]
       journal = context[:journal]
+      #Rails.logger.warn("=========================")
+      #Rails.logger.warn(escape(issue.author))
+      #Rails.logger.warn(escape(issue.author.login))
+      #Rails.logger.warn(escape(issue.assigned_to.login))
+      
+      #Rails.logger.warn(escape(issue.watcher_users.join(", ")))
+      ##Rails.logger.warn(User.find(issue.author_id))
+      #Rails.logger.warn("----")
+      #Rails.logger.warn(issue.assigned_to)
+      ##Rails.logger.warn(User.find(issue.assigned_to))
+      ##Rails.logger.warn(issue.watcher_users[0].login)
+      ##Rails.logger.warn(issue.watcher_users[0].auth_source_id)
+      #Rails.logger.warn("=========================")
       return if issue.is_private? || journal.private_notes?
 
       return unless url = url_for_project(issue.project)
 
       title = "#{escape issue.project}"
       text = "#{escape journal.user.to_s} updated [#{escape issue}](#{object_url issue}) #{mentions journal.notes}"
-
+      
       factsTitle = escape journal.notes if journal.notes
       facts = get_facts(journal)
+        
+      members = Array.new
+      begin
+    	members << "#{escape issue.author.login}@wafersystems.com" if !issue.author.nil? && issue.author.auth_source_id == 1
+        members << "#{escape issue.assigned_to.login}@wafersystems.com" if !issue.assigned_to.nil? && issue.assigned_to.type=='User' && issue.assigned_to.auth_source_id == 1
+        
+        issue.watcher_users.each{ | watcher |
+        	members << "#{escape watcher.login}@wafersystems.com" if watcher.type=='User' && watcher.auth_source_id == 1
+        }
+        
+        members.uniq!
+	  rescue Exception => e
+		Rails.logger.error(e.message)
+	  end
+      facts["members"] = escape(members.join(";"))
 
       msg=TeamsMessage.new(text,title)
       msg.addFacts(factsTitle,facts)
